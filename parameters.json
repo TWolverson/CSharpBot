@@ -1,0 +1,39 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_BotPay_name": {
+            "value": null
+        },
+        "workflows_BotList_name": {
+            "value": null
+        },
+        "workflows_BotMeme_name": {
+            "value": null
+        },
+        "workflows_BotLearn_name": {
+            "value": null
+        },
+        "connections_azuretables_name": {
+            "value": null
+        },
+        "serverfarms_UKSouthPlan_name": {
+            "value": null
+        },
+        "sites_csharpbot_commandeval_name": {
+            "value": null
+        },
+        "workflows_DaughterOfCaprica_name": {
+            "value": null
+        },
+        "storageAccounts_csharpbotdata_name": {
+            "value": null
+        },
+        "config_web_name": {
+            "value": null
+        },
+        "hostNameBindings_csharpbot_commandeval.azurewebsites.net_name": {
+            "value": null
+        }
+    }
+}

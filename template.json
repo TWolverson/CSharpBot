@@ -1,0 +1,1130 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_BotPay_name": {
+            "defaultValue": "BotPay",
+            "type": "String"
+        },
+        "workflows_BotList_name": {
+            "defaultValue": "BotList",
+            "type": "String"
+        },
+        "workflows_BotMeme_name": {
+            "defaultValue": "BotMeme",
+            "type": "String"
+        },
+        "workflows_BotLearn_name": {
+            "defaultValue": "BotLearn",
+            "type": "String"
+        },
+        "connections_azuretables_name": {
+            "defaultValue": "azuretables",
+            "type": "String"
+        },
+        "serverfarms_UKSouthPlan_name": {
+            "defaultValue": "UKSouthPlan",
+            "type": "String"
+        },
+        "sites_csharpbot_commandeval_name": {
+            "defaultValue": "csharpbot-commandeval",
+            "type": "String"
+        },
+        "workflows_DaughterOfCaprica_name": {
+            "defaultValue": "DaughterOfCaprica",
+            "type": "String"
+        },
+        "storageAccounts_csharpbotdata_name": {
+            "defaultValue": "csharpbotdata",
+            "type": "String"
+        },
+        "config_web_name": {
+            "defaultValue": "web",
+            "type": "String"
+        },
+        "hostNameBindings_csharpbot_commandeval.azurewebsites.net_name": {
+            "defaultValue": "csharpbot-commandeval.azurewebsites.net",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Logic/workflows/BotLearn'.",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflows_BotLearn_name')]",
+            "apiVersion": "2017-07-01",
+            "location": "uksouth",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "manual": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "properties": {
+                                        "command_name": {
+                                            "type": "string"
+                                        },
+                                        "command_text": {
+                                            "type": "string"
+                                        },
+                                        "owning_userid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Compose": {
+                            "runAfter": {},
+                            "type": "Compose",
+                            "inputs": "@addProperty(triggerBody(), 'new_command_name', split(triggerBody()?['command_text'],' ')[0])"
+                        },
+                        "Compose_2": {
+                            "runAfter": {
+                                "Compose": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@addProperty(outputs('Compose'), 'new_command_text', replace(triggerBody()?['command_text'],concat(outputs('Compose')['new_command_name'],' '), ''))"
+                        },
+                        "Condition": {
+                            "actions": {
+                                "Response": {
+                                    "runAfter": {},
+                                    "type": "Response",
+                                    "kind": "Http",
+                                    "inputs": {
+                                        "body": "I don't think so! You can't update that command.",
+                                        "statusCode": 200
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Scope": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "else": {
+                                "actions": {
+                                    "Insert_or_Replace_Entity": {
+                                        "runAfter": {},
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "body": {
+                                                "executeUri": "https://csharpbot-commandeval.azurewebsites.net/api/HttpTriggerJS1?code=##todojscriptfunctionkey##",
+                                                "isReadOnly": false,
+                                                "owningUserId": "@{triggerBody()?['owning_userid']}",
+                                                "response": "@{body('Parse_JSON')?['new_command_text']}"
+                                            },
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                                }
+                                            },
+                                            "method": "put",
+                                            "path": "/Tables/@{encodeURIComponent('BotCommands')}/entities(PartitionKey='@{encodeURIComponent('1')}',RowKey='@{encodeURIComponent(body('Parse_JSON')?['new_command_name'])}')"
+                                        }
+                                    },
+                                    "Response_2": {
+                                        "runAfter": {
+                                            "Insert_or_Replace_Entity": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Response",
+                                        "kind": "Http",
+                                        "inputs": {
+                                            "body": "Command \"@{body('Parse_JSON')?['new_command_name']}\" learned",
+                                            "statusCode": 200
+                                        }
+                                    }
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@bool(body('Get_entity')['isReadOnly'])",
+                                            "@true"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Insert_or_Replace_Entity_2": {
+                            "runAfter": {
+                                "Condition": [
+                                    "Skipped"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "executeUri": "https://csharpbot-commandeval.azurewebsites.net/api/HttpTriggerJS1?code=##todojscriptfunctionkey##",
+                                    "isReadOnly": false,
+                                    "owningUserId": "@{body('Parse_JSON')?['owning_userid']}",
+                                    "response": "@{body('Parse_JSON')?['new_command_text']}"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "path": "/Tables/@{encodeURIComponent('BotCommands')}/entities(PartitionKey='@{encodeURIComponent('1')}',RowKey='@{encodeURIComponent(body('Parse_JSON')?['new_command_name'])}')"
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "Compose_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@outputs('Compose_2')",
+                                "schema": {
+                                    "properties": {
+                                        "command_name": {
+                                            "type": "string"
+                                        },
+                                        "command_text": {
+                                            "type": "string"
+                                        },
+                                        "new_command_name": {
+                                            "type": "string"
+                                        },
+                                        "new_command_text": {
+                                            "type": "string"
+                                        },
+                                        "owning_userid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Response_3": {
+                            "runAfter": {
+                                "Insert_or_Replace_Entity_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "body": "Command \"@{body('Parse_JSON')?['new_command_name']}\" learned",
+                                "statusCode": 200
+                            }
+                        },
+                        "Scope": {
+                            "actions": {
+                                "Get_entity": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                            }
+                                        },
+                                        "method": "get",
+                                        "path": "/Tables/@{encodeURIComponent('BotCommands')}/entities(PartitionKey='@{encodeURIComponent('1')}',RowKey='@{encodeURIComponent(body('Parse_JSON')?['new_command_name'])}')"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Scope"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azuretables": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_azuretables_name'))]",
+                                "connectionName": "azuretables",
+                                "id": "/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/providers/Microsoft.Web/locations/uksouth/managedApis/azuretables"
+                            }
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connections_azuretables_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Logic/workflows/BotList'.",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflows_BotList_name')]",
+            "apiVersion": "2017-07-01",
+            "location": "uksouth",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "manual": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Get_entities": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/Tables/@{encodeURIComponent('BotCommands')}/entities",
+                                "queries": {
+                                    "$select": "RowKey"
+                                }
+                            }
+                        },
+                        "Join": {
+                            "runAfter": {
+                                "Select": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Join",
+                            "inputs": {
+                                "from": "@body('Select')",
+                                "joinWith": ", "
+                            }
+                        },
+                        "Response": {
+                            "runAfter": {
+                                "Join": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "body": "The commands I know are: @{body('Join')}",
+                                "statusCode": 200
+                            }
+                        },
+                        "Select": {
+                            "runAfter": {
+                                "Get_entities": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Select",
+                            "inputs": {
+                                "from": "@body('Get_entities')?['value']",
+                                "select": "@{item()?['RowKey']}"
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azuretables": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_azuretables_name'))]",
+                                "connectionName": "azuretables",
+                                "id": "/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/providers/Microsoft.Web/locations/uksouth/managedApis/azuretables"
+                            }
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connections_azuretables_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Logic/workflows/BotMeme'.",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflows_BotMeme_name')]",
+            "apiVersion": "2017-07-01",
+            "location": "uksouth",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "triggers": {
+                        "manual": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Filter_array": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Query",
+                            "inputs": {
+                                "from": "@body('Parse_JSON')?['data']?['memes']",
+                                "where": "@contains(item()?['name'], split(body('Parse_JSON_2')?['command_text'], '/')[0])"
+                            }
+                        },
+                        "HTTP": {
+                            "runAfter": {
+                                "Initialize_variable_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "method": "POST",
+                                "uri": "https://api.imgflip.com/caption_image?password=@{encodeUriComponent('##todoimgflippassword##')}&template_id=@{take(body('Filter_array'),1)[0]['id']}&text0=@{encodeUriComponent(variables('memeCommand')['text0'])}&text1=@{encodeUriComponent(variables('memeCommand')['text1'])}&username=##todoimgflipusername##"
+                            }
+                        },
+                        "HTTP_2": {
+                            "runAfter": {
+                                "Initialize_variable": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "method": "GET",
+                                "uri": "https://api.imgflip.com/get_memes"
+                            }
+                        },
+                        "Initialize_variable": {
+                            "runAfter": {
+                                "Parse_JSON_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "memeCommand",
+                                        "type": "Object",
+                                        "value": {
+                                            "name": "@{split(body('Parse_JSON_2')?['command_text'],'/')[0]}",
+                                            "text0": "@{split(body('Parse_JSON_2')?['command_text'],'/')[1]}",
+                                            "text1": "@{split(body('Parse_JSON_2')?['command_text'],'/')[2]}"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_2": {
+                            "runAfter": {
+                                "Filter_array": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "foundMeme",
+                                        "type": "Object",
+                                        "value": "@take(body('Filter_array'),1)[0]"
+                                    }
+                                ]
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "HTTP_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_2')",
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "memes": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "height": {
+                                                                "type": "integer"
+                                                            },
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "url": {
+                                                                "type": "string"
+                                                            },
+                                                            "width": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "name",
+                                                            "url",
+                                                            "width",
+                                                            "height"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "success": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Parse_JSON_2": {
+                            "runAfter": {},
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@triggerBody()",
+                                "schema": {
+                                    "properties": {
+                                        "command_name": {
+                                            "type": "string"
+                                        },
+                                        "command_text": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Parse_JSON_3": {
+                            "runAfter": {
+                                "HTTP": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP')",
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "page_url": {
+                                                    "type": "string"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "success": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Response": {
+                            "runAfter": {
+                                "Parse_JSON_3": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "body": "@body('Parse_JSON_3')?['data']?['url']",
+                                "statusCode": 200
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {}
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Logic/workflows/BotPay'.",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflows_BotPay_name')]",
+            "apiVersion": "2017-07-01",
+            "location": "uksouth",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "triggers": {},
+                    "actions": {},
+                    "outputs": {}
+                },
+                "parameters": {}
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Logic/workflows/DaughterOfCaprica'.",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflows_DaughterOfCaprica_name')]",
+            "apiVersion": "2017-07-01",
+            "location": "uksouth",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "manual": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "properties": {
+                                        "$content": {
+                                            "type": "string"
+                                        },
+                                        "$content-type": {
+                                            "type": "string"
+                                        },
+                                        "$formdata": {
+                                            "items": {
+                                                "properties": {
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "value": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "key",
+                                                    "value"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Compose": {
+                            "runAfter": {
+                                "Initialize_variable": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@addProperty(variables('commandObject'), 'command_name', replace(split(variables('commandObject')['text'],' ')[0], '!!', ''))"
+                        },
+                        "Compose_2": {
+                            "runAfter": {
+                                "Compose": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@addProperty(outputs('Compose'), 'command_arguments', replace(outputs('Compose')['text'], concat('!!', outputs('Compose')['command_name'], ' '), ''))"
+                        },
+                        "Get_Command": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/Tables/@{encodeURIComponent('BotCommands')}/entities(PartitionKey='@{encodeURIComponent('1')}',RowKey='@{encodeURIComponent(body('Parse_JSON')?['command_name'])}')"
+                            }
+                        },
+                        "Initialize_variable": {
+                            "runAfter": {
+                                "Select": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "commandObject",
+                                        "type": "Object",
+                                        "value": "@union(body('Select')[0],body('Select')[1],body('Select')[2],body('Select')[3],body('Select')[4],body('Select')[5],body('Select')[7],body('Select')[8],body('Select')[9],body('Select')[10])"
+                                    }
+                                ]
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "Compose_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@outputs('Compose_2')",
+                                "schema": {
+                                    "properties": {
+                                        "channel_id": {
+                                            "type": "string"
+                                        },
+                                        "channel_name": {
+                                            "type": "string"
+                                        },
+                                        "command_arguments": {
+                                            "type": "string"
+                                        },
+                                        "command_name": {
+                                            "type": "string"
+                                        },
+                                        "service_id": {
+                                            "type": "string"
+                                        },
+                                        "team_domain": {
+                                            "type": "string"
+                                        },
+                                        "team_id": {
+                                            "type": "string"
+                                        },
+                                        "text": {
+                                            "type": "string"
+                                        },
+                                        "token": {
+                                            "type": "string"
+                                        },
+                                        "trigger_word": {
+                                            "type": "string"
+                                        },
+                                        "user_id": {
+                                            "type": "string"
+                                        },
+                                        "user_name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Response_2": {
+                            "runAfter": {
+                                "Scope": [
+                                    "Succeeded",
+                                    "Skipped"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "body": {
+                                    "text": "I don't know that command. Commands I understand:"
+                                },
+                                "statusCode": 200
+                            }
+                        },
+                        "Scope": {
+                            "actions": {
+                                "HTTP_2": {
+                                    "runAfter": {},
+                                    "type": "Http",
+                                    "inputs": {
+                                        "body": {
+                                            "command_name": "@{body('Get_Command')['response']}",
+                                            "command_text": "@{body('Parse_JSON')?['command_arguments']}",
+                                            "name": "Daughter of Caprica"
+                                        },
+                                        "method": "POST",
+                                        "uri": "@{body('Get_Command')['executeUri']}"
+                                    }
+                                },
+                                "Response_3": {
+                                    "runAfter": {
+                                        "HTTP_2": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Response",
+                                    "kind": "Http",
+                                    "inputs": {
+                                        "body": {
+                                            "text": "@{body('HTTP_2')}"
+                                        },
+                                        "statusCode": 200
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Get_Command": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Scope"
+                        },
+                        "Select": {
+                            "runAfter": {},
+                            "type": "Select",
+                            "inputs": {
+                                "from": "@triggerBody()?['$formdata']",
+                                "select": {
+                                    "@item()['key']": "@item()['value']"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azuretables": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_azuretables_name'))]",
+                                "connectionName": "azuretables",
+                                "id": "/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/providers/Microsoft.Web/locations/uksouth/managedApis/azuretables"
+                            }
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connections_azuretables_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Storage/storageAccounts/csharpbotdata'.",
+            "type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "name": "[parameters('storageAccounts_csharpbotdata_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "uksouth",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": false,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Web/connections/azuretables'.",
+            "type": "Microsoft.Web/connections",
+            "name": "[parameters('connections_azuretables_name')]",
+            "apiVersion": "2016-06-01",
+            "location": "uksouth",
+            "scale": null,
+            "properties": {
+                "displayName": "botcommands",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/providers/Microsoft.Web/locations/uksouth/managedApis/', parameters('connections_azuretables_name'))]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Web/serverfarms/UKSouthPlan'.",
+            "type": "Microsoft.Web/serverfarms",
+            "sku": {
+                "name": "Y1",
+                "tier": "Dynamic",
+                "size": "Y1",
+                "family": "Y",
+                "capacity": 0
+            },
+            "kind": "functionapp",
+            "name": "[parameters('serverfarms_UKSouthPlan_name')]",
+            "apiVersion": "2016-09-01",
+            "location": "UK South",
+            "scale": null,
+            "properties": {
+                "name": "[parameters('serverfarms_UKSouthPlan_name')]",
+                "workerTierName": null,
+                "adminSiteName": null,
+                "hostingEnvironmentProfile": null,
+                "perSiteScaling": false,
+                "reserved": false,
+                "targetWorkerCount": 0,
+                "targetWorkerSizeId": 0
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Web/sites/csharpbot-commandeval'.",
+            "type": "Microsoft.Web/sites",
+            "kind": "functionapp",
+            "name": "[parameters('sites_csharpbot_commandeval_name')]",
+            "apiVersion": "2016-08-01",
+            "location": "UK South",
+            "scale": null,
+            "properties": {
+                "enabled": true,
+                "hostNameSslStates": [
+                    {
+                        "name": "[concat(parameters('sites_csharpbot_commandeval_name'),'.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "virtualIP": null,
+                        "thumbprint": null,
+                        "toUpdate": null,
+                        "hostType": "Standard"
+                    },
+                    {
+                        "name": "[concat(parameters('sites_csharpbot_commandeval_name'),'.scm.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "virtualIP": null,
+                        "thumbprint": null,
+                        "toUpdate": null,
+                        "hostType": "Repository"
+                    }
+                ],
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_UKSouthPlan_name'))]",
+                "reserved": false,
+                "siteConfig": null,
+                "scmSiteAlsoStopped": false,
+                "hostingEnvironmentProfile": null,
+                "clientAffinityEnabled": false,
+                "clientCertEnabled": false,
+                "hostNamesDisabled": false,
+                "containerSize": 1536,
+                "dailyMemoryTimeQuota": 0,
+                "cloningInfo": null
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_UKSouthPlan_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Web/sites/csharpbot-commandeval/config/web'.",
+            "type": "Microsoft.Web/sites/config",
+            "name": "[concat(parameters('sites_csharpbot_commandeval_name'), '/', parameters('config_web_name'))]",
+            "apiVersion": "2016-08-01",
+            "location": "UK South",
+            "scale": null,
+            "properties": {
+                "numberOfWorkers": 1,
+                "defaultDocuments": [
+                    "Default.htm",
+                    "Default.html",
+                    "Default.asp",
+                    "index.htm",
+                    "index.html",
+                    "iisstart.htm",
+                    "default.aspx",
+                    "index.php"
+                ],
+                "netFrameworkVersion": "v4.0",
+                "phpVersion": "5.6",
+                "pythonVersion": "",
+                "nodeVersion": "",
+                "linuxFxVersion": "",
+                "windowsFxVersion": null,
+                "requestTracingEnabled": false,
+                "remoteDebuggingEnabled": false,
+                "remoteDebuggingVersion": null,
+                "httpLoggingEnabled": false,
+                "logsDirectorySizeLimit": 35,
+                "detailedErrorLoggingEnabled": false,
+                "publishingUsername": "$csharpbot-commandeval",
+                "publishingPassword": null,
+                "appSettings": null,
+                "metadata": null,
+                "connectionStrings": null,
+                "machineKey": null,
+                "handlerMappings": null,
+                "documentRoot": null,
+                "scmType": "None",
+                "use32BitWorkerProcess": true,
+                "webSocketsEnabled": false,
+                "alwaysOn": false,
+                "javaVersion": null,
+                "javaContainer": null,
+                "javaContainerVersion": null,
+                "appCommandLine": "",
+                "managedPipelineMode": "Integrated",
+                "virtualApplications": [
+                    {
+                        "virtualPath": "/",
+                        "physicalPath": "site\\wwwroot",
+                        "preloadEnabled": false,
+                        "virtualDirectories": null
+                    }
+                ],
+                "winAuthAdminState": 0,
+                "winAuthTenantState": 0,
+                "customAppPoolIdentityAdminState": false,
+                "customAppPoolIdentityTenantState": false,
+                "runtimeADUser": null,
+                "runtimeADUserPassword": null,
+                "loadBalancing": "LeastRequests",
+                "routingRules": [],
+                "experiments": {
+                    "rampUpRules": []
+                },
+                "limits": null,
+                "autoHealEnabled": false,
+                "autoHealRules": null,
+                "tracingOptions": null,
+                "vnetName": "",
+                "siteAuthEnabled": false,
+                "siteAuthSettings": {
+                    "enabled": null,
+                    "unauthenticatedClientAction": null,
+                    "tokenStoreEnabled": null,
+                    "allowedExternalRedirectUrls": null,
+                    "defaultProvider": null,
+                    "clientId": null,
+                    "clientSecret": null,
+                    "issuer": null,
+                    "allowedAudiences": null,
+                    "additionalLoginParams": null,
+                    "isAadAutoProvisioned": false,
+                    "googleClientId": null,
+                    "googleClientSecret": null,
+                    "googleOAuthScopes": null,
+                    "facebookAppId": null,
+                    "facebookAppSecret": null,
+                    "facebookOAuthScopes": null,
+                    "twitterConsumerKey": null,
+                    "twitterConsumerSecret": null,
+                    "microsoftAccountClientId": null,
+                    "microsoftAccountClientSecret": null,
+                    "microsoftAccountOAuthScopes": null
+                },
+                "cors": {
+                    "allowedOrigins": [
+                        "https://functions.azure.com",
+                        "https://functions-staging.azure.com",
+                        "https://functions-next.azure.com"
+                    ]
+                },
+                "push": null,
+                "apiDefinition": null,
+                "autoSwapSlotName": null,
+                "localMySqlEnabled": false,
+                "managedServiceIdentityId": null,
+                "xManagedServiceIdentityId": null,
+                "ipSecurityRestrictions": null,
+                "http20Enabled": false,
+                "minTlsVersion": "1.0",
+                "ftpsState": "AllAllowed"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('sites_csharpbot_commandeval_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/0fb73409-b617-42a1-af3c-e47237983063/resourceGroups/Bot/providers/Microsoft.Web/sites/csharpbot-commandeval/hostNameBindings/csharpbot-commandeval.azurewebsites.net'.",
+            "type": "Microsoft.Web/sites/hostNameBindings",
+            "name": "[concat(parameters('sites_csharpbot_commandeval_name'), '/', parameters('hostNameBindings_csharpbot_commandeval.azurewebsites.net_name'))]",
+            "apiVersion": "2016-08-01",
+            "location": "UK South",
+            "scale": null,
+            "properties": {
+                "siteName": "csharpbot-commandeval",
+                "domainId": null,
+                "hostNameType": "Verified"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('sites_csharpbot_commandeval_name'))]"
+            ]
+        }
+    ]
+}
